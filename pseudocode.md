@@ -9,15 +9,15 @@
 ## Output
 - color coherence vector of image
 
-## Files and Functions
-# Preprocessing
+# Files and Functions
+## Preprocessing
 - `preprocess_image(url, size, blur_radius)` - get pixels from image, resize it, blur it
 
-# Color Quantization
+## Color Quantization
 - `quantize_pixels(pixels, color_space)` - quantize pixels into color space
 
-# Connectivity Analysis
+## Connectivity Analysis
 - `compute_connectivity(pixels)` - compute connectivity of pixels
 
-# Color Coherence Vector
+## Color Coherence Vector
 - `compute_ccv(pixels)` - compute color coherence vector from pixels
