@@ -24,8 +24,9 @@
 
 ```mermaid
 graph TD;
-    image --> preprocess_image;
-    preprocess_image --> quantize_pixels;
-    quantize_pixels --> compute_connectivity;
-    compute_connectivity --> compute_ccv;
+    subgraph Preprocessing
+        preprocess_image --> quantize_pixels
+        quantize_pixels --> compute_connectivity
+    end
+    compute_connectivity --> compute_ccv
 ```
