@@ -3,7 +3,7 @@ from sys import argv
 from PIL import Image
 from numpy import ndarray, array, dot, argmin, empty
 from httpx import Client
-from cv2 import cvtColor, COLOR_RGBA2RGB, resize
+from cv2 import cvtColor, COLOR_RGBA2RGB, resize, blur
 from functools import cache
 
 url: str = argv[1]
@@ -85,8 +85,14 @@ def quantize_image(img: ndarray) -> ndarray:
     mac_image: ndarray = macbeth_indices.reshape(img.shape[:2])
     return mac_image
 
+def blur_image(img: ndarray) -> ndarray:
+    """Blurs an image"""
+    blurred_image: ndarray = blur(img, (5, 5))
+    return blurred_image
+    
 if __name__ == "__main__":
     image: ndarray = get_image_from_url(url)
     resized_image: ndarray = resize_image(image, 16)
+    blurred_image: ndarray = blur_image(resized_image)
     quantized_image: ndarray = quantize_image(image)
     print(quantized_image)
