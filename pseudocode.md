@@ -21,3 +21,12 @@
 
 ## Color Coherence Vector
 - `compute_ccv(pixels)` - compute color coherence vector from pixels
+
+```mermaid
+graph PC;
+    subgraph Preprocessing
+        preprocess_image --> quantize_pixels
+        quantize_pixels --> compute_connectivity
+    end
+    compute_connectivity --> compute_ccv
+```
