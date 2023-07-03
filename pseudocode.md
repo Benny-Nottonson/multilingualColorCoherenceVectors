@@ -20,7 +20,7 @@
 - `compute_connectivity(pixels)` - compute connectivity of pixels
 
 ## Color Coherence Vector
-- `compute_ccv(pixels)` - compute color coherence vector from pixels
+- `compute_ccv(pixels, labels)` - compute color coherence vector from pixels
 
 ```mermaid
 graph TD;
