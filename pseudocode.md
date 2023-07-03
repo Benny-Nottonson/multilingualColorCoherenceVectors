@@ -23,7 +23,7 @@
 - `compute_ccv(pixels)` - compute color coherence vector from pixels
 
 ```mermaid
-graph PC;
+graph TD;
     image --> preprocess_image;
     preprocess_image --> quantize_pixels;
     quantize_pixels --> compute_connectivity;
