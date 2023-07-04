@@ -1,10 +1,11 @@
 from io import BytesIO
 from sys import argv
 from PIL import Image
-from numpy import ndarray, array, dot, argmin, empty
+from numpy import ndarray, array, dot, argmin, empty, max as numpy_max, bincount, count_nonzero
 from httpx import Client
-from cv2 import cvtColor, COLOR_RGBA2RGB, resize, blur
+from cv2 import cvtColor, COLOR_RGB2BGR, resize, blur
 from functools import cache
+from skimage.measure import label
 
 url: str = argv[1]
 
@@ -13,9 +14,9 @@ client_get = Client().get
 def get_image_from_url(url: str) -> ndarray:
     """Gets an image from a URL and converts it to BGR"""
     response_data = client_get(url, timeout=5)
-    pil_image: Image = Image.open(BytesIO(response_data.content))
-    bgr_image: ndarray = cvtColor(array(pil_image), COLOR_RGBA2RGB)
-    return bgr_image
+    pil_image: Image = Image.open(BytesIO(response_data.content), mode="r").convert("RGB")
+    rgb_image: ndarray = array(pil_image)
+    return rgb_image
 
 def resize_image(image: ndarray, size: int) -> ndarray:
     """Resizes an image to 16x16"""
@@ -87,12 +88,35 @@ def quantize_image(img: ndarray) -> ndarray:
 
 def blur_image(img: ndarray) -> ndarray:
     """Blurs an image"""
-    blurred_image: ndarray = blur(img, (5, 5))
+    blurred_image: ndarray = blur(img, (1, 1))
     return blurred_image
+
+def blob_extract(mac_image: ndarray) -> tuple[int, ndarray]:
+    """Extracts blobs from a MAC image"""
+    blob: ndarray = label(mac_image, connectivity=1) + 1
+    n_blobs: int = numpy_max(blob)
+    if n_blobs > 1:
+        count: ndarray = bincount(blob.ravel(), minlength=n_blobs + 1)[2:]
+        n_blobs += count_nonzero(count > 1)
+    return n_blobs, blob
     
 if __name__ == "__main__":
     image: ndarray = get_image_from_url(url)
     resized_image: ndarray = resize_image(image, 16)
     blurred_image: ndarray = blur_image(resized_image)
+    size_threshold = round(0.01 * blurred_image.shape[0] * blurred_image.shape[1])
     quantized_image: ndarray = quantize_image(image)
-    print(quantized_image)
+    n_blobs, blob = blob_extract(array(quantized_image))
+    table = [
+        [quantized_image[i][j], table[blob[i][j] - 1][1] + 1] if blob[i][j] != 0 else [0, 0]
+        for i in range(blob.shape[0])
+        for j in range(blob.shape[1])
+        for table in [[[0, 0] for _ in range(0, n_blobs)]]
+    ]
+    color_coherence_vector = [(0, 0) for _ in range(24)]
+    for color_index, size in ((entry[0], entry[1]) for entry in table):
+        color_coherence_vector[color_index] = (
+            color_coherence_vector[color_index][0] + size * (size >= size_threshold),
+            color_coherence_vector[color_index][1] + size * (size < size_threshold),
+        )
+    print(color_coherence_vector)
