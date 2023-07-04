@@ -3,7 +3,7 @@ from sys import argv
 from PIL import Image
 from numpy import ndarray, array, dot, argmin, empty, max as numpy_max, bincount, count_nonzero
 from httpx import Client
-from cv2 import cvtColor, COLOR_RGB2BGR, resize, blur
+from cv2 import resize, blur
 from functools import cache
 from skimage.measure import label
 
