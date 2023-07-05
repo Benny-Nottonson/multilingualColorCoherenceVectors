@@ -1,20 +1,21 @@
 from io import BytesIO
 from sys import argv
 from PIL import Image
-from numpy import ndarray, array, dot, argmin, empty, max as numpy_max, bincount, count_nonzero
+from numpy import ndarray, array, argmin, empty, max as numpy_max, bincount, count_nonzero
 from httpx import Client
 from cv2 import resize, blur
 from functools import cache
 from skimage.measure import label
+from skimage.color import rgb2lab
 
 url: str = argv[1]
 
 client_get = Client().get
 
 def get_image_from_url(url: str) -> ndarray:
-    """Gets an image from a URL and converts it to BGR"""
+    """Gets an image from a URL and converts it to rgb"""
     response_data = client_get(url, timeout=5)
-    pil_image: Image = Image.open(BytesIO(response_data.content), mode="r").convert("RGB")
+    pil_image: Image = Image.open(BytesIO(response_data.content), mode="r").convert("RGB").quantize(24)
     rgb_image: ndarray = array(pil_image)
     return rgb_image
 
@@ -24,65 +25,56 @@ def resize_image(image: ndarray, size: int) -> ndarray:
     return resized_image
 
 @cache
-def find_minimum_macbeth(bgr_color: tuple[int, int, int], func: callable) -> int:
+def find_minimum_macbeth(rgb_color: tuple[int, int, int]) -> int:
     """Finds the minimum Macbeth color for a given RGB color"""
-    macbeth_colors = [
-        [115, 82, 68], [194, 150, 130], [98, 122, 157], [87, 108, 67], [133, 128, 177],
-        [103, 189, 170], [214, 126, 44], [80, 91, 166], [193, 90, 99], [94, 60, 108],
-        [157, 188, 64], [224, 163, 46], [56, 61, 150], [70, 148, 73], [175, 54, 60],
-        [231, 199, 31], [187, 86, 149], [8, 133, 161], [243, 243, 242], [200, 200, 200],
-        [160, 160, 160], [122, 122, 121], [85, 85, 85], [52, 52, 52]
+    macbeth_colors_lab = [
+        (38.01556819050297, 11.799246065430925, 13.659810862228817),
+        (65.66584592032572, 13.677966707062506, 16.891497135258792),
+        (50.62872612858402, 0.3762204345665876, -21.60668785772295),
+        (42.99827414912467, -15.875497785250769, 20.448220821512532),
+        (55.68426392278387, 12.769622676794935, -25.17743656853377),
+        (70.99555652720578, -30.633920904301004, 1.5313021653773573),
+        (61.132774518070505, 28.10840041331891, 56.13159225919361),
+        (41.1219051456942, 17.416808162968035, -41.887847715629746),
+        (51.32530009287757, 42.103298772955874, 14.875103773761023),
+        (31.100148909436427, 24.360449682691687, -22.10563091981519),
+        (71.89619196717393, -28.105371212539087, 56.95643588819582),
+        (71.03534310675323, 12.604144827425168, 64.91630276853245),
+        (30.352217643249205, 26.44171827900474, -49.67478949861708),
+        (55.03414375826084, -40.13717467074795, 32.294606416704895),
+        (41.34067187464068, 49.31214182927615, 24.65453708377111),
+        (80.70247272634805, -3.664136504373472, 77.55076396301426),
+        (51.14074495202793, 48.15685180402457, -15.293832639161952),
+        (51.15181402648304, -19.723109447744026, -23.37811709196305),
+        (95.81673513861851, -0.17120059258257658, 0.47062215313316),
+        (80.60408285838321, 0.0043809118435156336, -0.008667871726619758),
+        (65.86781342007546, 0.0037126347334770493, -0.007345649213430505),
+        (51.1947408046985, -0.1968062646886537, 0.5399645509152728),
+        (36.14585083971984, 0.0023647693635220346, -0.00467882446352208),
+        (21.704275932542863, 0.001709856396275855, -0.003383043631877136),
     ]
-    color_distances = array([func(bgr_color, tuple(macbeth_color))
-                             for macbeth_color in macbeth_colors])
+    color_distances = array([lab_distance_3d(rgb_color, macbeth_color)
+                             for macbeth_color in macbeth_colors_lab])
     best = argmin(color_distances)
     return best
 
-def lab_distance_3d(bgr_one: tuple[int, int, int], bgr_two: tuple[int, int, int]) -> float:
-    """Estimates the distance between two BGR colors in LAB space"""
-    l_one, a_one, b_one = bgr_to_lab(bgr_one)
-    l_two, a_two, b_two = bgr_to_lab(bgr_two)
+def lab_distance_3d(rgb_one: tuple[int, int, int], rgb_two: tuple[int, int, int]) -> float:
+    """Estimates the distance between two rgb colors in LAB space"""
+    l_one, a_one, b_one = rgb2lab(rgb_one)
+    l_two, a_two, b_two = rgb_two
     return abs(l_one - l_two) + abs(a_one - a_two) + abs(b_one - b_two)
 
 @cache
-def bgr_to_lab(bgr_color: tuple[int, int, int]) -> tuple:
-    """Converts a BGR color to a CIELAB color"""
-    bgr_color: ndarray = array(bgr_color, dtype=float) / 255.0
-    bgr_color: ndarray = _bgr_to_xyz(bgr_color)
-    lab_color: tuple = _xyz_to_lab(bgr_color)
-    return lab_color
-
-def _bgr_to_xyz(normalized_bgr: ndarray) -> ndarray:
-    """Converts a BGR color to a CIE XYZ color"""
-    mask: ndarray = normalized_bgr > 0.04045
-    normalized_bgr[mask] = ((normalized_bgr[mask] + 0.055) / 1.055) ** 2.4
-    normalized_bgr[~mask] /= 12.92
-    xyz_to_bgr_matrix: ndarray = array(
-        [[0.1805, 0.3576, 0.4124], [0.0722, 0.7152, 0.2126], [0.9505, 0.1192, 0.0193]]
-    )
-    xyz_color: ndarray = dot(xyz_to_bgr_matrix, normalized_bgr)
-    return xyz_color
-
-
-def _xyz_to_lab(xyz: ndarray) -> tuple:
-    """Converts a CIE XYZ color to a CIELAB color"""
-    xyz_n_reference: ndarray = array([0.95047, 1.0, 1.08883])
-    xyz_normalized: ndarray = (xyz / xyz_n_reference) ** (1 / 3)
-    mask: ndarray = xyz_normalized <= 0.008856
-    xyz_normalized[mask] = (7.787 * xyz_normalized[mask]) + (16 / 116)
-    lab_color: tuple = (
-        116 * xyz_normalized[1] - 16,
-        500 * (xyz_normalized[0] - xyz_normalized[1]),
-        200 * (xyz_normalized[1] - xyz_normalized[2]),
-    )
-    return lab_color
+def rgb2labCached(rgb_color: tuple[int, int, int]) -> tuple[int, int, int]:
+    """Converts an RGB color to a LAB color"""
+    return rgb2lab(rgb_color)
 
 def quantize_image(img: ndarray) -> ndarray:
     """Converts an RGB image to a MAC image"""
     flattened_pixels: ndarray = img.reshape(-1, 3)
     macbeth_indices: ndarray = empty(flattened_pixels.shape[0], dtype="uint8")
     for i, pixel in enumerate(flattened_pixels):
-        macbeth_indices[i] = find_minimum_macbeth(tuple(pixel), lab_distance_3d)
+        macbeth_indices[i] = find_minimum_macbeth(tuple(pixel))
     mac_image: ndarray = macbeth_indices.reshape(img.shape[:2])
     return mac_image
 
