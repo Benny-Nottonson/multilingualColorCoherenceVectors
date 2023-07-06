@@ -3,8 +3,8 @@ import quantize from 'quantize';
 import BlobExtraction from './ccl.js';
 
 const url = process.argv[2];
-const quantized_level = 12;
-const size = 12;
+const quantized_level = 16;
+const size = 16;
 const blur = 1;
 
 function quantizeArray(pixels, quantized_level) {
@@ -24,9 +24,11 @@ function quantizeArray(pixels, quantized_level) {
         }
         return minIndex;
     });
-    const blobs = BlobExtraction(quantizedColors, size, size);
-    const nBlobs = Math.max(...blobs);
-    return [quantizedColors, blobs, nBlobs];
+    // Make a copy of quantized colors
+    const quantizedColorsCopy = [...quantizedColors];
+    BlobExtraction(quantizedColors, size, size);
+    const nBlobs = Math.max(...quantizedColors);
+    return [quantizedColorsCopy, quantizedColors, nBlobs];
 }
 
 labDistance3d.cache = {};
@@ -76,9 +78,40 @@ async function getImageBytesFromURL(url) {
         pixels.push([red, green, blue]);
     });
     const [quantizedColors, blobs, nBlobs] = quantizeArray(pixels, quantized_level);
-    return quantizedColors;
+    return [quantizedColors, blobs, nBlobs];
 }
 
 const imageBytes = getImageBytesFromURL(url).then(imageBytes => {
-    console.log(imageBytes);
+    const [quantizedColors, blobs, nBlobs] = imageBytes;
+    const blobs2d = [];
+    for (let i = 0; i < size; i++) {
+        blobs2d.push(blobs.slice(i * size, (i + 1) * size));
+    }
+    const table = [];
+    const quantizedColors2d = [];
+    for (let i = 0; i < size; i++) {
+        quantizedColors2d.push(quantizedColors.slice(i * size, (i + 1) * size));
+    }
+    const size_threshold = 0.01 * size * size;
+    for (let i = 0; i < blobs2d.length; i++) {
+        for (let j = 0; j < blobs2d[i].length; j++) {
+            if (blobs2d[i][j] !== 0) {
+                table.push([quantizedColors2d[i][j], blobs2d[i][j]]);
+            }
+        }
+    }
+    const color_coherence_vector = [];
+    for (let i = 0; i < quantized_level; i++) {
+        color_coherence_vector.push([0, 0]);
+    }
+    for (let i = 0; i < table.length; i++) {
+        const color_index = table[i][0];
+        const size = table[i][1];
+        color_coherence_vector[color_index] = [
+            color_coherence_vector[color_index][0] + size * (size >= size_threshold),
+            color_coherence_vector[color_index][1] + size * (size < size_threshold),
+        ];
+    }
+    console.log(color_coherence_vector);
+    return color_coherence_vector;
 });
