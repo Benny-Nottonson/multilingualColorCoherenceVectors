@@ -3,8 +3,8 @@ import quantize from 'quantize';
 import BlobExtraction from './ccl.js';
 
 const url = process.argv[2];
-const quantized_level = 16;
-const size = 16;
+const quantized_level = 8;
+const size = 8;
 const blur = 1;
 
 function quantizeArray(pixels, quantized_level) {
@@ -24,7 +24,6 @@ function quantizeArray(pixels, quantized_level) {
         }
         return minIndex;
     });
-    // Make a copy of quantized colors
     const quantizedColorsCopy = [...quantizedColors];
     BlobExtraction(quantizedColors, size, size);
     const nBlobs = Math.max(...quantizedColors);
@@ -68,7 +67,7 @@ function rgb2lab(rgb) {
 
 async function getImageBytesFromURL(url) {
     const image = await Jimp.read(url);
-    image.resize(size, size);
+    image.resize(size, size, Jimp.RESIZE_BEZIER);
     image.gaussian(blur);
     const pixels = [];
     image.scan(0, 0, image.bitmap.width, image.bitmap.height, function (x, y, idx) {
@@ -92,7 +91,7 @@ const imageBytes = getImageBytesFromURL(url).then(imageBytes => {
     for (let i = 0; i < size; i++) {
         quantizedColors2d.push(quantizedColors.slice(i * size, (i + 1) * size));
     }
-    const size_threshold = 0.01 * size * size;
+    const size_threshold = Math.round(0.01 * size * size);
     for (let i = 0; i < blobs2d.length; i++) {
         for (let j = 0; j < blobs2d[i].length; j++) {
             if (blobs2d[i][j] !== 0) {

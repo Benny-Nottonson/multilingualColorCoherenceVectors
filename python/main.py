@@ -6,8 +6,8 @@ from PIL import Image, ImageFilter
 from httpx import Client
 
 url: str = argv[1]
-quantized_level = 32
-size = 32
+quantized_level = 8
+size = 8
 blur = 1
 
 client = Client()
@@ -17,7 +17,7 @@ def get_image_from_url(url: str) -> Image:
     response_data = client.get(url, timeout=5)
     pil_image: Image = Image.open(BytesIO(response_data.content), mode="r").convert("RGB")
     pil_image = pil_image.filter(ImageFilter.GaussianBlur(blur))
-    pil_image = pil_image.resize((size, size))
+    pil_image = pil_image.resize((size, size), Image.Resampling.LANCZOS)
     pil_image = pil_image.quantize(quantized_level)
     return pil_image
 
