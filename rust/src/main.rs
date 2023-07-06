@@ -1,6 +1,12 @@
 use reqwest::blocking::get;
 use std::io::{Read, Cursor};
 use image::{io::Reader as ImageReader, ImageFormat};
+use std::env;
+use image::imageops::{Lanczos3, blur};
+
+const SIZE: u8 = 32;
+const QUANTIZATION: u8 = 24;
+const BLUR: u8 = 1;
 
 fn get_image_from_url(url: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let mut response = get(url)?;
@@ -13,19 +19,30 @@ fn get_image_from_url(url: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> 
         .unwrap()
         .decode()?;
 
-    let mut image_buffer = Cursor::new(Vec::new());
-    image.write_to(&mut image_buffer, ImageFormat::Png)?;
-    let image_buffer = image_buffer.into_inner();
+    // Add alpha channel after every 3 bytes to the original image
+    let image = image.into_rgba8();
+
+    // Resize to SIZE x SIZE
+    let image = image::imageops::resize(&image, SIZE as u32, SIZE as u32, Lanczos3);
+
+    // Blur image
+    let image = image::imageops::blur(&image, BLUR as f32);
+    
+    // Get image buffer
+    let image_buffer = image.into_raw();
+
 
     Ok(image_buffer)
 }
 
 fn main() {
-    let url = "https://i.redd.it/w3kr4m2fi3111.png";
+    let url: &str = &env::args().nth(1).expect("No URL provided!");
     match get_image_from_url(url) {
         Ok(image_data) => {
-            println!("Image retrieved successfully!");
-            println!("{:?}", image_data);
+            println!("Image data: {:?}", image_data);
+            // Quantize image
+            // Label Connected Components
+            // Compute CCV
         }
         Err(err) => eprintln!("Error retrieving image: {}", err),
     }
