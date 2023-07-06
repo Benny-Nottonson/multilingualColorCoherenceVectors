@@ -86,17 +86,30 @@ const imageBytes = getImageBytesFromURL(url).then(imageBytes => {
     for (let i = 0; i < size; i++) {
         blobs2d.push(blobs.slice(i * size, (i + 1) * size));
     }
-    const table = [];
     const quantizedColors2d = [];
     for (let i = 0; i < size; i++) {
         quantizedColors2d.push(quantizedColors.slice(i * size, (i + 1) * size));
     }
     const size_threshold = Math.round(0.01 * size * size);
-    for (let i = 0; i < blobs2d.length; i++) {
-        for (let j = 0; j < blobs2d[i].length; j++) {
-            if (blobs2d[i][j] !== 0) {
-                table.push([quantizedColors2d[i][j], blobs2d[i][j]]);
-            }
+    /*
+    table = [
+        [image_array[i][j], table[blob[i][j] - 1][1] + 1] if blob[i][j] != 0 else [0, 0]
+        for i in range(blob.shape[0])
+        for j in range(blob.shape[1])
+        for table in [[[0, 0] for _ in range(0, n_blobs)]]
+    ]
+    color_coherence_vector = [(0, 0) for _ in range(quantized_level)]
+    for color_index, size in ((entry[0], entry[1]) for entry in table):
+        color_coherence_vector[color_index] = (
+            color_coherence_vector[color_index][0] + size * (size >= size_threshold),
+            color_coherence_vector[color_index][1] + size * (size < size_threshold),
+        )
+        */
+
+    const table = [];
+    for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+            table.push([quantizedColors2d[i][j], blobs2d[i][j]]);
         }
     }
     const color_coherence_vector = [];
@@ -112,5 +125,4 @@ const imageBytes = getImageBytesFromURL(url).then(imageBytes => {
         ];
     }
     console.log(color_coherence_vector);
-    return color_coherence_vector;
 });
