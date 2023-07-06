@@ -1,5 +1,6 @@
-const Jimp = require('jimp');
-const quantize = require('quantize');
+import Jimp from 'jimp';
+import quantize from 'quantize';
+import BlobExtraction from './ccl.js';
 
 const url = process.argv[2];
 const quantized_level = 12;
@@ -23,7 +24,9 @@ function quantizeArray(pixels, quantized_level) {
         }
         return minIndex;
     });
-    return quantizedColors;
+    const blobs = BlobExtraction(quantizedColors, size, size);
+    const nBlobs = Math.max(...blobs);
+    return [quantizedColors, blobs, nBlobs];
 }
 
 labDistance3d.cache = {};
@@ -72,7 +75,7 @@ async function getImageBytesFromURL(url) {
         const blue = this.bitmap.data[idx + 2];
         pixels.push([red, green, blue]);
     });
-    const quantizedColors = quantizeArray(pixels, quantized_level);
+    const [quantizedColors, blobs, nBlobs] = quantizeArray(pixels, quantized_level);
     return quantizedColors;
 }
 
