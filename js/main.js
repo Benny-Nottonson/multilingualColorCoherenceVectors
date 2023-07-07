@@ -105,7 +105,6 @@ const imageBytes = getImageBytesFromURL(url).then(imageBytes => {
             color_coherence_vector[color_index][1] + size * (size < size_threshold),
         )
         */
-
     const table = [];
     for (let i = 0; i < size; i++) {
         for (let j = 0; j < size; j++) {
